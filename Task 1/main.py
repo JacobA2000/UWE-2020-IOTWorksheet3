@@ -1,19 +1,16 @@
 import asyncio
-
 import websockets
-import json
-
-import time
 import base64
-import struct
 
 async def recv_packet(websocket):
+    """Recvieves the udp packet."""
     packet = await websocket.recv()
 
     print(f"Base64: {packet}")
     return  base64.b64decode(packet)
 
-async def recv_decode_packet(websocket):
+async def decode_packet(websocket):
+    """Decodes the recvied packet"""
     packet = await recv_packet(websocket)
     print(f"UDP: {packet}")   
 
@@ -37,6 +34,6 @@ async def main():
 
     async with websockets.connect(uri) as websocket:
         
-        await recv_decode_packet(websocket)
+        await decode_packet(websocket)
 
 asyncio.get_event_loop().run_until_complete(main())
