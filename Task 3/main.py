@@ -30,6 +30,16 @@ def calculate_checksum(source_port: int, dest_port: int, length: int, payload: b
     print(f"Calculated Checksum: {checksum}")
     return checksum
 
+async def send_packet(websocket, source_port: int, dest_port: int, payload):
+    source_port = source_port.to_bytes(2, "little")
+    dest_port = dest_port.to_bytes(2, "little")
+
+    payload = bytes(str(payload), "utf-8")
+
+    packet = source_port + dest_port + payload
+
+    await websocket.send(packet)
+
 async def recv_packet(websocket):
     """Recvieves the udp packet."""
     packet = await websocket.recv()
@@ -57,6 +67,7 @@ async def decode_packet(websocket):
     payload = packet[8:(length+8)].decode("utf-8")
     print(f"Payload: {payload}")
 
+    #await send_packet(websocket, source_port, dest_port, payload)
     #CALCULATE THE CHECKSUM
     calculated_checksum = calculate_checksum(source_port,dest_port,length,bytearray(payload.encode()))
     
@@ -68,6 +79,8 @@ async def main():
 
     async with websockets.connect(uri) as websocket:
         
+        await send_packet(websocket, 0, 542, b"1111")
+
         await decode_packet(websocket)
 
 asyncio.get_event_loop().run_until_complete(main())
