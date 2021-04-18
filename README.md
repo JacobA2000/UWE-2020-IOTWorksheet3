@@ -6,22 +6,11 @@ For Task 1, I had to recieve and decode the welcome message's UDP packet.
 We do this by slicing the returned packet and converting into the correct data type. In our case mostly int but also utf-8 for the string payload.
 ```py
 packet = await recv_packet(websocket)
-print(f"UDP: {packet}")   
-
 source_port = int.from_bytes(packet[0:2], "little")
-print(f"Source Port: {source_port}")
-
 dest_port = int.from_bytes(packet[2:4], "little")
-print(f"Dest Port: {dest_port}")
-
 length = int.from_bytes(packet[4:6], "little")
-print(f"Length: {length}")
-
 checksum = int.from_bytes(packet[6:8], "little")
-print(f"Checksum: {checksum}")
-
 payload = packet[8:(length+8)].decode("utf-8")
-print(f"Payload: {payload}")
 ```
 
 After decoding each slice is printed out and we recieve the following output:
@@ -41,16 +30,19 @@ Task 2 required me to calculate the sent packet's checksum, this checksum should
 
 Todo this I implemented the calculate_checksum function:
 ```py
-def calculate_checksum(source_port: int, dest_port: int, length: int, payload: bytearray):
+def calculate_checksum(source_port: int, dest_port: int, payload: bytearray) -> int:
     """Calculates the checksum of the udp packet."""
 
     checksum = 0
+    #Calculate the length of the packet, by adding 8 (the length of the header) plus the length of the payload.
+    length = 8 + len(payload)
 
     #Converting the passed info into byte form
     source = source_port.to_bytes(2, byteorder="little")
     dest = dest_port.to_bytes(2, byteorder="little")
     size = length.to_bytes(2, byteorder="little")
     checksum_bytes = checksum.to_bytes(2, byteorder="little")
+    
     #Creating the byte array for the checksum
     checksum_packet = source + dest + size + checksum_bytes + payload
 
@@ -65,7 +57,6 @@ def calculate_checksum(source_port: int, dest_port: int, length: int, payload: b
     checksum = (checksum >> 16) + (checksum & 0xFFFF)
     checksum = ~checksum & 0xFFFF
 
-    print(f"Calculated Checksum: {checksum}")
     return checksum
 ```
 Running this calculation on the welcome message packet resulted proved that the packet recieved was valid and that the checksum calculation is correct:
@@ -80,3 +71,30 @@ Checksum: 15307
 Payload: Welcome to IoT UDP Server
 Calculated Checksum: 15307
 ```
+***
+## **Task 3**
+Task 3 required me to send a udp packet to the socket, this would then return a packet containing the current UTC time.
+
+Todo this I implmented the send_packet function which takes in the desired header and payload data then converts it to byte form encodes it to base64 and then sends the packet to the socket.
+```py
+async def send_packet(websocket, source_port: int, dest_port: int, payload) -> None:
+    """Sends a packet to the server using the given header and payload data."""
+    #Convert the given data into bytes.
+    source = source_port.to_bytes(2, "little")
+    dest = dest_port.to_bytes(2, "little")
+    length = 8 + len(payload)
+    size = length.to_bytes(2, "little")
+    checksum_bytes = calculate_checksum(source_port, dest_port, payload).to_bytes(2, "little")
+    
+    #Create the udp packet bytes.
+    packet = source + dest + size + checksum_bytes + payload
+    #Encode the packet into base64.
+    packet = base64.b64encode(packet)
+
+    #Send the packet.
+    await websocket.send(packet)
+```
+
+After running this code we can see it works as we get a packet returned every second containing the current time. As can be seen below:
+
+<img src="assets/Task 3 Demo.gif">
