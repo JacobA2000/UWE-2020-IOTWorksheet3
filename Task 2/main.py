@@ -3,10 +3,11 @@ import websockets
 import base64
 import struct
 
-def calculate_checksum(source_port: int, dest_port: int, length: int, payload: bytearray):
+def calculate_checksum(source_port: int, dest_port: int, payload: bytearray) -> int:
     """Calculates the checksum of the udp packet."""
 
     checksum = 0
+    length = 8 + len(payload)
 
     #Converting the passed info into byte form
     source = source_port.to_bytes(2, byteorder="little")
@@ -27,43 +28,42 @@ def calculate_checksum(source_port: int, dest_port: int, length: int, payload: b
     checksum = (checksum >> 16) + (checksum & 0xFFFF)
     checksum = ~checksum & 0xFFFF
 
-    print(f"Calculated Checksum: {checksum}")
     return checksum
 
-async def recv_packet(websocket):
+async def recv_packet(websocket) -> bytes:
     """Recvieves the udp packet."""
     packet = await websocket.recv()
 
     print(f"Base64: {packet}")
-    return  base64.b64decode(packet)
+    return base64.b64decode(packet)
 
-async def decode_packet(websocket):
+async def decode_packet(websocket) -> None:
     """Decodes the recvied packet"""
     packet = await recv_packet(websocket)
-    print(f"UDP: {packet}")   
-
     source_port = int.from_bytes(packet[0:2], "little")
-    print(f"Source Port: {source_port}")
-
     dest_port = int.from_bytes(packet[2:4], "little")
-    print(f"Dest Port: {dest_port}")
-
     length = int.from_bytes(packet[4:6], "little")
-    print(f"Length: {length}")
-
     checksum = int.from_bytes(packet[6:8], "little")
-    print(f"Checksum: {checksum}")
-
     payload = packet[8:(length+8)].decode("utf-8")
-    print(f"Payload: {payload}")
-
-    #CALCULATE THE CHECKSUM
-    calculated_checksum = calculate_checksum(source_port,dest_port,length,bytearray(payload.encode()))
     
+    #CALCULATE THE CHECKSUM
+    calculated_checksum = calculate_checksum(source_port, dest_port, bytearray(payload.encode()))
+    
+
     if calculated_checksum != checksum:
         print("Checksums do not match INVALID PACKET!")
+    else:
+        print("-" * (24 + len(str(packet))))
+        print(f"UDP:                    {packet}")
+        print(f"Source Port:            {source_port}")
+        print(f"Dest Port:              {dest_port}")
+        print(f"Length:                 {length}")
+        print(f"Checksum:               {checksum}")
+        print(f"Payload:                {payload}")
+        print(f"Calculated Checksum:    {calculated_checksum}")
+        print("-" * (24 + len(str(packet))))
 
-async def main():
+async def main() -> None:
     uri = "ws://localhost:5612"
 
     async with websockets.connect(uri) as websocket:
