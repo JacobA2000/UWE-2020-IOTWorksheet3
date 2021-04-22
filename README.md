@@ -1,5 +1,9 @@
 # **iot-worksheet-3**
 
+This worksheet required me to experiment with the udp packet protocol, by recieving, verifying (checking the checksum is valid) and sending udp packets. 
+
+Unfortunately, due to the asynchronous nature of the tasks, there was not much I could write unit tests for. However, I have implemented a test to ensure my calculate checksum is valid as this is not an async function.
+
 ## **Task 1**
 For Task 1, I had to recieve and decode the welcome message's UDP packet.
 
@@ -70,6 +74,28 @@ Length: 33
 Checksum: 15307
 Payload: Welcome to IoT UDP Server
 Calculated Checksum: 15307
+```
+I also wrote the following unit test to verify that this function worked as expected:
+```py
+def test_calculate_checksum(self):
+        #THE DATA IN THE WELCOME PACKET NEEDED TO TEST THE CALCULATE CHECKSUM
+        source_port = 10
+        dest_port = 42
+        payload = 'Welcome to IoT UDP Server'
+        
+        #THE VALUE OUR CALCULATE CHECKSUM FUNCTION SHOULD RESULT IN
+        checksum = 15307
+
+        self.assertEqual(udp.calculate_checksum(source_port, dest_port, bytearray(payload.encode())), checksum)
+```
+Running the unit test resulted in a pass:
+```bash
+(iot_env) jacob2.allen@live.uwe.ac.uk@CSImageBuild:~/projects/iot-worksheet-3$ /home/jacob2.allen/projects/iot_env/bin/python3 "/home/jacob2.allen/projects/iot-worksheet-3/Task 2/unittesting.py"
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.030s
+
+OK
 ```
 ***
 ## **Task 3**

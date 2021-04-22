@@ -2,12 +2,13 @@ import asyncio
 import websockets
 import base64
 import struct
+import time
 
 def calculate_checksum(source_port: int, dest_port: int, payload: bytearray) -> int:
     """Calculates the checksum of the udp packet."""
 
     checksum = 0
-    #Calculate the length of the packet, by adding 8 (the length of the header) plus the length of the payload.
+    #Calculate length of payload by adding 8 (the length of the header), and the length of the payload together.
     length = 8 + len(payload)
 
     #Converting the passed info into byte form
@@ -15,7 +16,7 @@ def calculate_checksum(source_port: int, dest_port: int, payload: bytearray) -> 
     dest = dest_port.to_bytes(2, byteorder="little")
     size = length.to_bytes(2, byteorder="little")
     checksum_bytes = checksum.to_bytes(2, byteorder="little")
-    
+
     #Creating the byte array for the checksum
     checksum_packet = source + dest + size + checksum_bytes + payload
 
@@ -31,6 +32,23 @@ def calculate_checksum(source_port: int, dest_port: int, payload: bytearray) -> 
     checksum = ~checksum & 0xFFFF
 
     return checksum
+
+async def send_packet(websocket, source_port: int, dest_port: int, payload) -> None:
+    """Sends a packet to the server using the given header and payload data."""
+    #Convert the given data into bytes.
+    source = source_port.to_bytes(2, "little")
+    dest = dest_port.to_bytes(2, "little")
+    length = 8 + len(payload)
+    size = length.to_bytes(2, "little")
+    checksum_bytes = calculate_checksum(source_port, dest_port, payload).to_bytes(2, "little")
+    
+    #Create the udp packet bytes.
+    packet = source + dest + size + checksum_bytes + payload
+    #Encode the packet into base64.
+    packet = base64.b64encode(packet)
+
+    #Send the packet.
+    await websocket.send(packet)
 
 async def recv_packet(websocket) -> bytes:
     """Recvieves the udp packet."""
@@ -50,14 +68,15 @@ async def decode_packet(websocket) -> None:
     checksum = int.from_bytes(packet[6:8], "little")
     payload = packet[8:(length+8)].decode("utf-8")
     
-    #Calculate the checksum
+    #Calculate the checksum.
     calculated_checksum = calculate_checksum(source_port, dest_port, bytearray(payload.encode()))
+    print(f"Calculated Checksum: {calculated_checksum}")
 
     #Check if the calculated checksum isn't equal to the checksum in the packet. To determine if a packet is invalid.
     if calculated_checksum != checksum:
         print("Checksums do not match INVALID PACKET!")
     else:
-        #Output the packet header data and payload.
+        #Output the data.
         print("-" * (24 + len(str(packet))))
         print(f"UDP:                    {packet}")
         print(f"Source Port:            {source_port}")
@@ -76,4 +95,12 @@ async def main() -> None:
         
         await decode_packet(websocket)
 
-asyncio.get_event_loop().run_until_complete(main())
+        while True:
+            await send_packet(websocket, 0, 542, b"1111")
+
+            await decode_packet(websocket)
+
+            time.sleep(1)
+
+if __name__ == "__main__":
+    asyncio.get_event_loop().run_until_complete(main())
